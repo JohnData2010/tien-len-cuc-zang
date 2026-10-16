@@ -2,7 +2,7 @@ import { CardUtils } from './engine/CardUtils.js';
 import { ComboDetector } from './engine/ComboDetector.js';
 import { TLMNStrategy } from './engine/strategies/TLMNStrategy.js';
 import { TLMBStrategy } from './engine/strategies/TLMBStrategy.js';
-import { Card, TablePlay } from '../shared/types.js';
+import { Card, TablePlay } from '../../shared/types.js';
 
 console.log('--- 🧪 CHẠY KIỂM THỬ RULE ENGINE TIẾN LÊN CỤC ZÀNG ---');
 

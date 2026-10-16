@@ -176,8 +176,8 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => {
+const PORT = Number(process.env.PORT) || 10000;
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`===============================================`);
   console.log(`🏆 GAME TIẾN LÊN CỤC ZÀNG SERVER IS ONLINE!`);
   console.log(`🚀 Port: ${PORT}`);

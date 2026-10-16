@@ -1,7 +1,7 @@
 services:
   - type: web
     name: tien-len-cuc-zang
-    env: node
+    runtime: node
     plan: free
     region: singapore
     buildCommand: npm run install-all && npm run build
@@ -10,5 +10,3 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 10000

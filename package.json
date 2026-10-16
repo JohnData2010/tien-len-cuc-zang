@@ -4,7 +4,7 @@
   "description": "Game đánh bài Tiến Lên Cục Zàng (Tiến Lên Miền Nam & Miền Bắc Multiplayer)",
   "main": "server/dist/server/src/index.js",
   "scripts": {
-    "install-all": "npm install && npm install --prefix server && npm install --prefix client",
+    "install-all": "npm install --include=dev && npm install --prefix server --include=dev && npm install --prefix client --include=dev",
     "build:server": "npm run build --prefix server",
     "build:client": "npm run build --prefix client",
     "build": "npm run build:server && npm run build:client",
