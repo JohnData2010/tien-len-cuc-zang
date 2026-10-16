@@ -1,0 +1,30 @@
+{
+  "name": "tien-len-cuc-zang",
+  "version": "1.0.0",
+  "description": "Game đánh bài Tiến Lên Cục Zàng (Tiến Lên Miền Nam & Miền Bắc Multiplayer)",
+  "main": "server/dist/server/src/index.js",
+  "scripts": {
+    "install-all": "npm install && npm install --prefix server && npm install --prefix client",
+    "build:server": "npm run build --prefix server",
+    "build:client": "npm run build --prefix client",
+    "build": "npm run build:server && npm run build:client",
+    "start": "node server/dist/server/src/index.js",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\""
+  },
+  "keywords": [
+    "tien-len",
+    "tien-len-mien-nam",
+    "tien-len-mien-bac",
+    "multiplayer",
+    "socket.io",
+    "render",
+    "react"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
