@@ -75,6 +75,14 @@ export class RoomManager {
     return this.rooms.get(code);
   }
 
+  public getRoom(roomCode: string): GameRoom | undefined {
+    return this.rooms.get(roomCode.toUpperCase());
+  }
+
+  public setPlayerRoom(playerId: string, roomCode: string) {
+    this.playerToRoom.set(playerId, roomCode.toUpperCase());
+  }
+
   public leaveRoom(playerId: string) {
     const code = this.playerToRoom.get(playerId);
     if (!code) return;

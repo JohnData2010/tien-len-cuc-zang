@@ -72,4 +72,14 @@ const finishOnTwo = tlmb.isGameOverMoveIllegal(
 console.assert(finishOnTwo.illegal === true, 'TLMB: Cấm về bằng Heo');
 console.log('✅ TLMB: Nghiêm cấm về bằng 2 (Thối Heo cuối bài) chính xác!');
 
+// 6. Kiểm tra Nước đầu tiên với bàn 2-3 người (Lá nhỏ nhất linh hoạt)
+const dynamicFirstMove = tlmn.validatePlay(
+  [{ id: 1, rank: 0, suit: 1 }], // 3♣
+  null,
+  true,
+  1 // yêu cầu lá nhỏ nhất là 3♣ vì không ai cầm 3♠
+);
+console.assert(dynamicFirstMove.valid === true, 'Phải chấp nhận lá nhỏ nhất hợp lệ');
+console.log('✅ Bàn 2-3 người: Xác định lá nhỏ nhất đi đầu chuẩn xác!');
+
 console.log('🎉 TẤT CẢ TEST CASES ĐÃ ĐẠT 100%!');

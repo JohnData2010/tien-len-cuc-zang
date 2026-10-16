@@ -28,7 +28,8 @@ export interface RuleStrategy {
   validatePlay(
     newPlayCards: Card[],
     currentTablePlay: TablePlay | null,
-    isFirstMoveOfGame: boolean
+    isFirstMoveOfGame: boolean,
+    requiredFirstCardId?: number
   ): ValidationResult;
 
   /**

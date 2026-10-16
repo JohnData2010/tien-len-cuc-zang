@@ -208,9 +208,11 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                 onChange={(e) => setTurnTimeLimit(Number(e.target.value))}
                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white font-semibold outline-none"
               >
+                <option value={0}>Không Giới Hạn (Thong Thả)</option>
                 <option value={15}>15 Giây (Nhanh)</option>
                 <option value={20}>20 Giây (Vừa Phải)</option>
                 <option value={30}>30 Giây (Thư Thả)</option>
+                <option value={60}>60 Giây (Nhiều Thời Gian)</option>
               </select>
             </div>
 

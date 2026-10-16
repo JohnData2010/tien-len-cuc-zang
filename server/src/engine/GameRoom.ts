@@ -46,6 +46,7 @@ export class GameRoom {
   private strategy: RuleStrategy;
   private onStateChange: () => void;
   private finishedPlayerRanks: string[] = [];
+  private requiredFirstCardId?: number;
 
   constructor(
     roomCode: string,
@@ -185,17 +186,30 @@ export class GameRoom {
       }
     }
 
-    // Xác định người đi đầu: người cầm 3 Bích (Card ID = 0: Rank 0, Suit 0)
+    // Tìm người có lá bài nhỏ nhất (ưu tiên 3 Bích = Card ID 0)
     let firstPlayer = playerList.find((p) =>
       p.hand.some((c) => c.rank === 0 && c.suit === 0)
     );
+    let smallestCardId = 0;
 
     if (!firstPlayer) {
-      firstPlayer = playerList[0];
+      // Nếu không ai cầm 3 Bích (bàn 2-3 người), tìm lá nhỏ nhất trong tất cả các bài đã chia
+      let minCard: Card | null = null;
+      for (const p of playerList) {
+        if (p.hand.length > 0) {
+          const pMin = p.hand[0]; // Bài đã được sort từ nhỏ đến lớn
+          if (!minCard || CardUtils.compareCards(pMin, minCard) < 0) {
+            minCard = pMin;
+            firstPlayer = p;
+          }
+        }
+      }
+      smallestCardId = minCard ? minCard.id : 0;
     }
 
-    this.starterPlayerId = firstPlayer.id;
-    this.currentTurnPlayerId = firstPlayer.id;
+    this.requiredFirstCardId = smallestCardId;
+    this.starterPlayerId = firstPlayer ? firstPlayer.id : playerList[0].id;
+    this.currentTurnPlayerId = this.starterPlayerId;
     this.isFirstMoveOfGame = true;
     this.phase = 'PLAYING';
 
@@ -238,7 +252,8 @@ export class GameRoom {
     const validation = this.strategy.validatePlay(
       selectedCards,
       this.lastPlay,
-      this.isFirstMoveOfGame
+      this.isFirstMoveOfGame,
+      this.requiredFirstCardId
     );
 
     if (!validation.valid || !validation.combo) {
@@ -260,6 +275,7 @@ export class GameRoom {
     player.hand = player.hand.filter((c) => !cardIds.includes(c.id));
     player.hasPlayedAnyCard = true;
     this.isFirstMoveOfGame = false;
+    this.requiredFirstCardId = undefined;
 
     // Cập nhật bài trên bàn
     const actionMsg = validation.actionMessage || (this.lastPlay ? 'Chặn bài' : 'Ra bài');
@@ -435,6 +451,12 @@ export class GameRoom {
    * Quản lý bộ đếm thời gian lượt đánh (Turn Timer)
    */
   private startTurnTimer() {
+    this.stopTimer();
+    // Nếu cài đặt không giới hạn thời gian (<= 0)
+    if (this.settings.turnTimeLimit <= 0) {
+      this.turnTimeRemaining = 0;
+      return;
+    }
     this.turnTimeRemaining = this.settings.turnTimeLimit;
     this.timerInterval = setInterval(() => {
       this.turnTimeRemaining--;

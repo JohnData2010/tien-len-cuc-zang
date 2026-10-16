@@ -88,30 +88,51 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('ready', ({ ready }: { ready: boolean }) => {
-    if (!boundPlayerId) return;
-    const room = roomManager.getRoomByPlayer(boundPlayerId);
-    if (room) {
-      room.setReady(boundPlayerId, ready);
+  socket.on('register_player', ({ playerId, roomCode }: { playerId: string; roomCode?: string }) => {
+    boundPlayerId = playerId;
+    let room = roomCode ? roomManager.getRoom(roomCode) : undefined;
+    if (!room) {
+      room = roomManager.getRoomByPlayer(playerId);
+    }
+    if (room && room.players.has(playerId)) {
+      const p = room.players.get(playerId)!;
+      p.socketId = socket.id;
+      roomManager.setPlayerRoom(playerId, room.roomCode);
+      socket.emit('room_state_update', room.getStateForPlayer(playerId));
     }
   });
 
-  socket.on('update_settings', ({ settings }: { settings: Partial<RoomSettings> }) => {
-    if (!boundPlayerId) return;
-    const room = roomManager.getRoomByPlayer(boundPlayerId);
+  socket.on('ready', (data: { playerId?: string; ready: boolean }) => {
+    const pid = data.playerId || boundPlayerId;
+    if (!pid) return;
+    const room = roomManager.getRoomByPlayer(pid);
     if (room) {
-      const player = room.players.get(boundPlayerId);
+      const player = room.players.get(pid);
+      if (player) player.socketId = socket.id;
+      room.setReady(pid, data.ready);
+    }
+  });
+
+  socket.on('update_settings', (data: { playerId?: string; settings: Partial<RoomSettings> }) => {
+    const pid = data.playerId || boundPlayerId;
+    if (!pid) return;
+    const room = roomManager.getRoomByPlayer(pid);
+    if (room) {
+      const player = room.players.get(pid);
+      if (player) player.socketId = socket.id;
       if (player?.isHost) {
-        room.updateSettings(settings);
+        room.updateSettings(data.settings);
       }
     }
   });
 
-  socket.on('start_game', () => {
-    if (!boundPlayerId) return;
-    const room = roomManager.getRoomByPlayer(boundPlayerId);
+  socket.on('start_game', (data?: { playerId?: string }) => {
+    const pid = data?.playerId || boundPlayerId;
+    if (!pid) return;
+    const room = roomManager.getRoomByPlayer(pid);
     if (room) {
-      const player = room.players.get(boundPlayerId);
+      const player = room.players.get(pid);
+      if (player) player.socketId = socket.id;
       if (!player?.isHost) {
         socket.emit('action_error', { message: 'Chỉ có Chủ phòng mới có quyền bắt đầu ván!' });
         return;
@@ -123,33 +144,44 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('play_cards', ({ cardIds }: { cardIds: number[] }) => {
-    if (!boundPlayerId) return;
-    const room = roomManager.getRoomByPlayer(boundPlayerId);
+  socket.on('play_cards', (data: { playerId?: string; cardIds: number[] }) => {
+    const pid = data.playerId || boundPlayerId;
+    if (!pid) {
+      socket.emit('action_error', { message: 'Mất kết nối người chơi, vui lòng tải lại trang!' });
+      return;
+    }
+    const room = roomManager.getRoomByPlayer(pid);
     if (room) {
-      const playResult = room.playCards(boundPlayerId, cardIds);
+      const player = room.players.get(pid);
+      if (player) player.socketId = socket.id;
+      const playResult = room.playCards(pid, data.cardIds);
       if (!playResult.success) {
         socket.emit('action_error', { message: playResult.error });
       }
     }
   });
 
-  socket.on('pass_turn', () => {
-    if (!boundPlayerId) return;
-    const room = roomManager.getRoomByPlayer(boundPlayerId);
+  socket.on('pass_turn', (data?: { playerId?: string }) => {
+    const pid = data?.playerId || boundPlayerId;
+    if (!pid) return;
+    const room = roomManager.getRoomByPlayer(pid);
     if (room) {
-      const passResult = room.passTurn(boundPlayerId);
+      const player = room.players.get(pid);
+      if (player) player.socketId = socket.id;
+      const passResult = room.passTurn(pid);
       if (!passResult.success) {
         socket.emit('action_error', { message: passResult.error });
       }
     }
   });
 
-  socket.on('add_bot', () => {
-    if (!boundPlayerId) return;
-    const room = roomManager.getRoomByPlayer(boundPlayerId);
+  socket.on('add_bot', (data?: { playerId?: string }) => {
+    const pid = data?.playerId || boundPlayerId;
+    if (!pid) return;
+    const room = roomManager.getRoomByPlayer(pid);
     if (room) {
-      const player = room.players.get(boundPlayerId);
+      const player = room.players.get(pid);
+      if (player) player.socketId = socket.id;
       if (!player?.isHost) {
         socket.emit('action_error', { message: 'Chỉ Chủ phòng mới có quyền thêm Bot!' });
         return;
@@ -163,9 +195,10 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('leave_room', () => {
-    if (boundPlayerId) {
-      roomManager.leaveRoom(boundPlayerId);
+  socket.on('leave_room', (data?: { playerId?: string }) => {
+    const pid = data?.playerId || boundPlayerId;
+    if (pid) {
+      roomManager.leaveRoom(pid);
       boundPlayerId = null;
     }
   });

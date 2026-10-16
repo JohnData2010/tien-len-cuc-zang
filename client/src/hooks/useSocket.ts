@@ -36,6 +36,8 @@ export function useSocket() {
     socket.on('connect', () => {
       console.log('Đã kết nối Socket Game:', socket.id);
       setConnected(true);
+      // Đăng ký lại playerId với server sau khi kết nối/reconnect
+      socket.emit('register_player', { playerId });
     });
 
     socket.on('disconnect', () => {
@@ -55,7 +57,7 @@ export function useSocket() {
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [playerId]);
 
   const createRoom = useCallback(
     (settings: RoomSettings, playerName: string, avatar: string) => {
@@ -85,34 +87,34 @@ export function useSocket() {
 
   const setReady = useCallback((ready: boolean) => {
     if (!socketRef.current) return;
-    socketRef.current.emit('ready', { ready });
-  }, []);
+    socketRef.current.emit('ready', { playerId, ready });
+  }, [playerId]);
 
   const startGame = useCallback(() => {
     if (!socketRef.current) return;
-    socketRef.current.emit('start_game');
-  }, []);
+    socketRef.current.emit('start_game', { playerId });
+  }, [playerId]);
 
   const playCards = useCallback((cardIds: number[]) => {
     if (!socketRef.current) return;
-    socketRef.current.emit('play_cards', { cardIds });
-  }, []);
+    socketRef.current.emit('play_cards', { playerId, cardIds });
+  }, [playerId]);
 
   const passTurn = useCallback(() => {
     if (!socketRef.current) return;
-    socketRef.current.emit('pass_turn');
-  }, []);
+    socketRef.current.emit('pass_turn', { playerId });
+  }, [playerId]);
 
   const addBot = useCallback(() => {
     if (!socketRef.current) return;
-    socketRef.current.emit('add_bot');
-  }, []);
+    socketRef.current.emit('add_bot', { playerId });
+  }, [playerId]);
 
   const leaveRoom = useCallback(() => {
     if (!socketRef.current) return;
-    socketRef.current.emit('leave_room');
+    socketRef.current.emit('leave_room', { playerId });
     setRoomState(null);
-  }, []);
+  }, [playerId]);
 
   return {
     connected,

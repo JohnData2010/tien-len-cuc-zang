@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, PlayerPublicInfo, RoomStateUpdate } from '../../../shared/types';
 import { CardView } from './CardView';
 import { sound } from '../utils/audio';
+import { findSmartHint } from '../utils/hint';
 import {
   Volume2,
   VolumeX,
@@ -10,8 +11,9 @@ import {
   Bot,
   Play,
   CheckCircle,
-  HelpCircle,
   Sparkles,
+  Lightbulb,
+  ArrowUpDown,
 } from 'lucide-react';
 
 interface GameTableViewProps {
@@ -38,15 +40,30 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
   const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
   const [isMuted, setIsMuted] = useState(sound.isMuted);
   const [copied, setCopied] = useState(false);
+  const [sortedHand, setSortedHand] = useState<Card[]>([]);
 
   const me = roomState.players.find((p) => p.id === myPlayerId);
   const isMyTurn = roomState.currentTurnPlayerId === myPlayerId;
   const isHost = me?.isHost || false;
+  const hasTimeLimit = roomState.settings.turnTimeLimit > 0;
 
-  // Xóa chọn bài khi đổi lượt
+  // Cập nhật và sắp xếp bài khi nhận bài mới
   useEffect(() => {
-    setSelectedCardIds([]);
-  }, [roomState.currentTurnPlayerId, roomState.lastPlay]);
+    const sorted = [...roomState.myHand].sort((a, b) => {
+      if (a.rank !== b.rank) return a.rank - b.rank;
+      return a.suit - b.suit;
+    });
+    setSortedHand(sorted);
+  }, [roomState.myHand]);
+
+  // FIX LỖI MẤT CHỌN BÀI: Chỉ xóa bài chọn khi LƯỢT CHUYỂN sang người khác
+  const prevTurnPlayerRef = useRef<string | null>(roomState.currentTurnPlayerId);
+  useEffect(() => {
+    if (prevTurnPlayerRef.current !== roomState.currentTurnPlayerId) {
+      setSelectedCardIds([]);
+      prevTurnPlayerRef.current = roomState.currentTurnPlayerId;
+    }
+  }, [roomState.currentTurnPlayerId]);
 
   // Âm thanh khi có người chặt heo hoặc đánh bài
   useEffect(() => {
@@ -61,10 +78,15 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
 
   // Bộ đếm âm thanh tích tắc khi còn dưới 5 giây
   useEffect(() => {
-    if (isMyTurn && roomState.turnTimeRemaining <= 5 && roomState.turnTimeRemaining > 0) {
+    if (
+      hasTimeLimit &&
+      isMyTurn &&
+      roomState.turnTimeRemaining <= 5 &&
+      roomState.turnTimeRemaining > 0
+    ) {
       sound.playTick();
     }
-  }, [roomState.turnTimeRemaining, isMyTurn]);
+  }, [roomState.turnTimeRemaining, isMyTurn, hasTimeLimit]);
 
   const toggleMute = () => {
     sound.isMuted = !isMuted;
@@ -87,6 +109,34 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
   const handlePlay = () => {
     if (selectedCardIds.length === 0) return;
     onPlayCards(selectedCardIds);
+    // Tạm xóa bài đã chọn sau khi ấn đánh
+    setSelectedCardIds([]);
+  };
+
+  // Tính năng GỢI Ý thông minh
+  const handleSmartHint = () => {
+    if (!isMyTurn) return;
+    const suggestedIds = findSmartHint(
+      sortedHand,
+      roomState.lastPlay,
+      roomState.settings.ruleMode
+    );
+    if (suggestedIds && suggestedIds.length > 0) {
+      sound.playCardSelect();
+      setSelectedCardIds(suggestedIds);
+    } else {
+      alert('Không có nước bài nào trên tay có thể chặn được! Bạn có thể chọn Bỏ Lượt.');
+    }
+  };
+
+  // Tính năng XẾP LẠI BÀI
+  const handleSortHand = () => {
+    sound.playCardSelect();
+    const sorted = [...sortedHand].sort((a, b) => {
+      if (a.rank !== b.rank) return a.rank - b.rank;
+      return a.suit - b.suit;
+    });
+    setSortedHand(sorted);
   };
 
   // Tính vị trí các đối thủ quanh bàn theo chiều kim đồng hồ
@@ -109,9 +159,9 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between overflow-hidden bg-gradient-to-b from-slate-950 via-[#062416] to-slate-950 select-none">
-      {/* Top Navigation Bar */}
-      <div className="z-20 flex items-center justify-between p-3 sm:p-4 bg-slate-950/70 backdrop-blur-md border-b border-amber-500/20">
+    <div className="relative h-screen max-h-screen w-full flex flex-col justify-between overflow-hidden bg-slate-950 select-none">
+      {/* 1. TOP HEADER (Fixed height: h-14) */}
+      <div className="flex-shrink-0 h-14 z-20 flex items-center justify-between px-3 sm:px-6 bg-slate-950/90 backdrop-blur-md border-b border-amber-500/20">
         <div className="flex items-center gap-3">
           <div className="font-black text-amber-400 tracking-wider text-base sm:text-lg flex items-center gap-1.5">
             <span>👑 TIẾN LÊN CỤC ZÀNG</span>
@@ -158,13 +208,13 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
         </div>
       </div>
 
-      {/* Main Poker Felt Table */}
-      <div className="relative flex-1 flex items-center justify-center p-4">
-        {/* The Felt Table Oval */}
-        <div className="relative w-full max-w-5xl h-[420px] sm:h-[480px] bg-gradient-to-br from-[#0c3c26] to-[#062416] border-8 border-[#3b220e] rounded-[100px] sm:rounded-[180px] shadow-[inset_0_0_60px_rgba(0,0,0,0.8),0_15px_30px_rgba(0,0,0,0.9)] flex items-center justify-center">
+      {/* 2. MAIN FELT TABLE AREA (Flex-1, dynamically shrinks or grows to fit viewport) */}
+      <div className="flex-1 min-h-0 relative flex items-center justify-center p-2 sm:p-4">
+        {/* Felt Table Oval */}
+        <div className="relative w-full max-w-4xl h-full max-h-[460px] bg-gradient-to-br from-[#0c3c26] to-[#062416] border-4 sm:border-8 border-[#3b220e] rounded-[70px] sm:rounded-[140px] shadow-[inset_0_0_60px_rgba(0,0,0,0.8),0_15px_30px_rgba(0,0,0,0.9)] flex items-center justify-center">
           {/* Subtle gold emblem inside felt table */}
           <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
-            <span className="text-6xl sm:text-8xl font-black text-amber-300 tracking-widest uppercase">
+            <span className="text-5xl sm:text-7xl font-black text-amber-300 tracking-widest uppercase">
               CỤC ZÀNG
             </span>
           </div>
@@ -187,7 +237,7 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
               >
                 {/* Avatar with turn ring glow */}
                 <div
-                  className={`relative w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-slate-900 flex items-center justify-center text-2xl sm:text-3xl border-2 transition-all ${
+                  className={`relative w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-slate-900 flex items-center justify-center text-xl sm:text-2xl border-2 transition-all ${
                     isTurn
                       ? 'border-amber-400 shadow-[0_0_20px_rgba(234,179,8,0.8)] scale-110'
                       : 'border-slate-700'
@@ -198,11 +248,11 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
                     <span className="absolute -top-1 -right-1 text-xs">👑</span>
                   )}
                   {player.passed && (
-                    <div className="absolute inset-0 bg-red-950/80 rounded-full flex items-center justify-center text-[10px] font-bold text-red-300">
+                    <div className="absolute inset-0 bg-red-950/80 rounded-full flex items-center justify-center text-[9px] font-bold text-red-300">
                       BỎ LƯỢT
                     </div>
                   )}
-                  {isTurn && (
+                  {isTurn && hasTimeLimit && (
                     <div className="absolute -bottom-2 bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full">
                       {roomState.turnTimeRemaining}s
                     </div>
@@ -211,7 +261,7 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
 
                 {/* Name & Card Count */}
                 <div className="mt-1 bg-slate-950/80 px-2 py-0.5 rounded text-center backdrop-blur-sm border border-slate-800">
-                  <div className="text-xs font-bold text-white truncate max-w-[80px] sm:max-w-[100px]">
+                  <div className="text-[11px] sm:text-xs font-bold text-white truncate max-w-[70px] sm:max-w-[90px]">
                     {player.name}
                   </div>
                   {roomState.phase === 'PLAYING' && (
@@ -236,7 +286,7 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
           {/* CENTER OF THE TABLE: Active Plays or Waiting Lobby */}
           <div className="z-10 flex flex-col items-center justify-center max-w-md text-center p-2">
             {roomState.phase === 'LOBBY' && (
-              <div className="bg-slate-950/80 border border-amber-500/40 p-4 rounded-2xl backdrop-blur-md shadow-2xl flex flex-col items-center gap-3">
+              <div className="bg-slate-950/85 border border-amber-500/40 p-4 rounded-2xl backdrop-blur-md shadow-2xl flex flex-col items-center gap-3">
                 <div className="text-amber-300 font-bold text-sm sm:text-base">
                   BÀN CHỜ: {roomState.players.length}/{roomState.settings.maxPlayers} NGƯỜI
                 </div>
@@ -245,10 +295,10 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
                   {isHost && roomState.players.length < roomState.settings.maxPlayers && (
                     <button
                       onClick={onAddBot}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 transition"
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 transition shadow-lg"
                     >
                       <Bot className="w-4 h-4" />
-                      <span>Thêm Bot Chơi Cùng</span>
+                      <span>Thêm Bot</span>
                     </button>
                   )}
 
@@ -300,8 +350,8 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-slate-950/60 border border-emerald-500/30 px-4 py-2 rounded-xl text-emerald-300 text-xs sm:text-sm font-bold animate-pulse">
-                    VÒNG MỚI: ĐƯỢC QUYỀN ĐÁNH TỰ DO
+                  <div className="bg-slate-950/70 border border-emerald-500/40 px-4 py-2 rounded-xl text-emerald-300 text-xs sm:text-sm font-bold shadow-lg">
+                    ✨ VÒNG MỚI: ĐƯỢC QUYỀN ĐÁNH TỰ DO ✨
                   </div>
                 )}
               </div>
@@ -310,27 +360,51 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
         </div>
       </div>
 
-      {/* BOTTOM AREA: Player's Own Hand & Action Controls */}
-      <div className="z-20 bg-slate-950/90 border-t border-amber-500/30 p-2 sm:p-4 backdrop-blur-md">
+      {/* 3. BOTTOM AREA: Action Bar & Player's Hand (Fixed at bottom, never clipped!) */}
+      <div className="flex-shrink-0 z-30 bg-slate-950/95 border-t border-amber-500/30 px-2 pt-2 pb-3 backdrop-blur-md">
         <div className="max-w-4xl mx-auto flex flex-col items-center">
           {/* Action Button Bar */}
           {roomState.phase === 'PLAYING' && (
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap justify-center">
               {/* Turn Countdown Indicator */}
               {isMyTurn && (
                 <div className="flex items-center gap-1.5 bg-amber-500/20 border border-amber-400 text-amber-300 font-black px-3 py-1 rounded-full text-xs animate-pulse">
-                  <span>LƯỢT CỦA BẠN:</span>
-                  <span className="text-sm font-extrabold">{roomState.turnTimeRemaining}s</span>
+                  <span>LƯỢT CỦA BẠN</span>
+                  {hasTimeLimit && (
+                    <span className="text-sm font-extrabold">: {roomState.turnTimeRemaining}s</span>
+                  )}
                 </div>
               )}
+
+              {/* Gợi ý button */}
+              {isMyTurn && (
+                <button
+                  onClick={handleSmartHint}
+                  className="bg-blue-600/80 hover:bg-blue-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 transition shadow-md"
+                  title="Tự động tìm nước bài chặn hợp lệ"
+                >
+                  <Lightbulb className="w-3.5 h-3.5" />
+                  <span>Gợi Ý</span>
+                </button>
+              )}
+
+              {/* Xếp bài button */}
+              <button
+                onClick={handleSortHand}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 transition"
+                title="Sắp xếp lại các lá bài"
+              >
+                <ArrowUpDown className="w-3.5 h-3.5" />
+                <span>Xếp Bài</span>
+              </button>
 
               {/* Bỏ lượt button */}
               <button
                 onClick={onPassTurn}
                 disabled={!isMyTurn || !roomState.lastPlay}
-                className={`font-bold px-4 py-2 rounded-xl text-xs sm:text-sm transition ${
+                className={`font-bold px-4 py-1.5 rounded-xl text-xs transition ${
                   isMyTurn && roomState.lastPlay
-                    ? 'bg-slate-800 hover:bg-slate-700 text-red-400 border border-red-500/40 shadow-md'
+                    ? 'bg-slate-800 hover:bg-slate-700 text-red-400 border border-red-500/40 shadow-md cursor-pointer'
                     : 'bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-800'
                 }`}
               >
@@ -343,7 +417,7 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
                 disabled={!isMyTurn || selectedCardIds.length === 0}
                 className={`font-black px-6 py-2 rounded-xl text-xs sm:text-sm shadow-xl transition flex items-center gap-1.5 ${
                   isMyTurn && selectedCardIds.length > 0
-                    ? 'bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-600 hover:from-yellow-400 hover:to-amber-400 text-slate-950 scale-105 animate-pulse'
+                    ? 'bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-600 hover:from-yellow-400 hover:to-amber-400 text-slate-950 scale-105 animate-pulse cursor-pointer'
                     : 'bg-slate-800 text-slate-500 cursor-not-allowed'
                 }`}
               >
@@ -353,19 +427,25 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
             </div>
           )}
 
-          {/* Cards Hand of Player */}
-          <div className="w-full overflow-x-auto pb-2 flex justify-center">
-            <div className="flex -space-x-4 sm:-space-x-6 px-4 pt-4">
-              {roomState.myHand.map((card) => {
+          {/* Cards Hand of Player (With pt-7 for translated lifted cards) */}
+          <div className="w-full overflow-x-auto overflow-y-visible flex justify-center pb-1">
+            <div className="flex -space-x-3 sm:-space-x-5 px-3 pt-6 pb-2">
+              {sortedHand.map((card) => {
                 const isSelected = selectedCardIds.includes(card.id);
                 return (
-                  <CardView
+                  <div
                     key={card.id}
-                    card={card}
-                    selected={isSelected}
-                    onClick={() => toggleSelectCard(card.id)}
-                    size="lg"
-                  />
+                    className={`transition-transform duration-150 ${
+                      isSelected ? '-translate-y-5 z-20' : 'z-0 hover:-translate-y-2'
+                    }`}
+                  >
+                    <CardView
+                      card={card}
+                      selected={isSelected}
+                      onClick={() => toggleSelectCard(card.id)}
+                      size="md"
+                    />
+                  </div>
                 );
               })}
             </div>

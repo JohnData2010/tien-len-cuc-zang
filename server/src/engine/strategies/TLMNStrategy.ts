@@ -18,7 +18,8 @@ export class TLMNStrategy implements RuleStrategy {
   validatePlay(
     newPlayCards: Card[],
     currentTablePlay: TablePlay | null,
-    isFirstMoveOfGame: boolean
+    isFirstMoveOfGame: boolean,
+    requiredFirstCardId?: number
   ): ValidationResult {
     const combo = ComboDetector.detectCombo(newPlayCards);
 
@@ -26,13 +27,13 @@ export class TLMNStrategy implements RuleStrategy {
       return { valid: false, reason: 'Tổ hợp bài không hợp lệ!' };
     }
 
-    // Nước bài đầu tiên của ván phải có 3 Bích (Card ID = 0: Rank 0, Suit 0)
-    if (isFirstMoveOfGame) {
-      const hasThreeSpades = newPlayCards.some((c) => c.rank === 0 && c.suit === 0);
-      if (!hasThreeSpades) {
+    // Nước bài đầu tiên của ván phải chứa lá bài nhỏ nhất yêu cầu (thường là 3 Bích hoặc lá nhỏ nhất được chia)
+    if (isFirstMoveOfGame && requiredFirstCardId !== undefined) {
+      const hasRequiredCard = newPlayCards.some((c) => c.id === requiredFirstCardId);
+      if (!hasRequiredCard) {
         return {
           valid: false,
-          reason: 'Nước bài đầu tiên của ván bắt buộc phải chứa 3 Bích (3♠)!',
+          reason: 'Nước bài đầu tiên của ván bắt buộc phải chứa lá bài nhỏ nhất trên tay bạn!',
         };
       }
     }
