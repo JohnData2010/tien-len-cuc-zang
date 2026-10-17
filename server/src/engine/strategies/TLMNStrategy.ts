@@ -131,17 +131,18 @@ export class TLMNStrategy implements RuleStrategy {
 
     // B. Chặt đôi Heo (prev là PAIR có rank 12)
     if (prev.type === 'PAIR' && prev.highestCard.rank === 12) {
+      if (curr.type === 'FOUR_OF_A_KIND') {
+        return {
+          valid: true,
+          combo,
+          actionMessage: 'Tứ quý Chặt Đôi Heo cực gắt!',
+        };
+      }
       if (curr.type === 'FOUR_CONSECUTIVE_PAIRS') {
         return {
           valid: true,
           combo,
-          actionMessage: 'Bốn đôi thông Chặt Đôi Heo!',
-        };
-      }
-      if (curr.type === 'FOUR_OF_A_KIND') {
-        return {
-          valid: false,
-          reason: 'Trong luật chuẩn TLMN, 1 Tứ quý không chặt được đôi Heo (cần Bốn đôi thông)!',
+          actionMessage: 'Bốn đôi thông Chặt Đôi Heo đỉnh cao!',
         };
       }
     }

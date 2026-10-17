@@ -12,6 +12,7 @@ import { ComboDetector } from './ComboDetector.js';
 import { PlayerEndState, RuleStrategy } from './strategies/RuleStrategy.js';
 import { TLMBStrategy } from './strategies/TLMBStrategy.js';
 import { TLMNStrategy } from './strategies/TLMNStrategy.js';
+import { BotAI } from './BotAI.js';
 
 export interface InternalPlayer {
   id: string;
@@ -495,7 +496,7 @@ export class GameRoom {
   }
 
   /**
-   * Trí tuệ nhân tạo (Bot) tự động chơi khi đến lượt
+   * Trí tuệ nhân tạo (Bot) tự động chơi đa dạng (Đôi, Sảnh, Sám cô, Tứ quý, Chặt heo, Rác)
    */
   private checkBotTurn() {
     if (this.phase !== 'PLAYING' || !this.currentTurnPlayerId) return;
@@ -503,7 +504,7 @@ export class GameRoom {
     const currentPlayer = this.players.get(this.currentTurnPlayerId);
     if (!currentPlayer || !currentPlayer.isBot) return;
 
-    // Giả lập bot suy nghĩ trong 1.2 giây cho tự nhiên
+    // Giả lập bot suy nghĩ trong 1.0 giây cho nhịp game tự nhiên
     setTimeout(() => {
       if (
         this.phase !== 'PLAYING' ||
@@ -511,59 +512,20 @@ export class GameRoom {
       )
         return;
 
-      const botHand = currentPlayer.hand;
+      const move = BotAI.findMove(
+        currentPlayer.hand,
+        this.lastPlay,
+        this.strategy,
+        this.isFirstMoveOfGame,
+        this.requiredFirstCardId
+      );
 
-      // 1. Nếu bắt đầu vòng mới -> đánh lá nhỏ nhất hoặc đôi nhỏ nhất
-      if (!this.lastPlay) {
-        // Ưu tiên nếu có nước đầu tiên của game (cần 3 bích)
-        if (this.isFirstMoveOfGame) {
-          const threeSpade = botHand.find((c) => c.rank === 0 && c.suit === 0);
-          if (threeSpade) {
-            this.playCards(currentPlayer.id, [threeSpade.id]);
-            return;
-          }
-        }
-        // Ra lá đơn nhỏ nhất
-        if (botHand.length > 0) {
-          this.playCards(currentPlayer.id, [botHand[0].id]);
-          return;
-        }
-      }
-
-      // 2. Tìm nước chặn hợp lệ đơn giản
-      let played = false;
-      const prev = this.lastPlay;
-
-      if (prev && prev.combo.type === 'SINGLE') {
-        // Tìm 1 lá có thể đè
-        for (const card of botHand) {
-          const val = this.strategy.validatePlay([card], prev, false);
-          if (val.valid) {
-            this.playCards(currentPlayer.id, [card.id]);
-            played = true;
-            break;
-          }
-        }
-      } else if (prev && prev.combo.type === 'PAIR') {
-        // Tìm 1 đôi đè
-        for (let i = 0; i < botHand.length - 1; i++) {
-          if (botHand[i].rank === botHand[i + 1].rank) {
-            const pairCards = [botHand[i], botHand[i + 1]];
-            const val = this.strategy.validatePlay(pairCards, prev, false);
-            if (val.valid) {
-              this.playCards(currentPlayer.id, [botHand[i].id, botHand[i + 1].id]);
-              played = true;
-              break;
-            }
-          }
-        }
-      }
-
-      // Nếu không tìm được nước đánh hợp lệ -> Bỏ lượt
-      if (!played) {
+      if (move && move.length > 0) {
+        this.playCards(currentPlayer.id, move);
+      } else {
         this.passTurn(currentPlayer.id);
       }
-    }, 1200);
+    }, 1000);
   }
 
   /**

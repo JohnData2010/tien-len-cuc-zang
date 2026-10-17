@@ -1,4 +1,142 @@
-import { Card, TablePlay, RuleMode } from '../../../shared/types';
+import { Card, TablePlay, RuleMode, ComboInfo, ComboType } from '../../../shared/types';
+
+export const RANK_NAMES = ['3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A', '2'];
+export const SUIT_SYMBOLS = ['♠', '♣', '♦', '♥'];
+
+export function getComboDescription(cards: Card[], ruleMode: RuleMode): { name: string; isValid: boolean } {
+  if (!cards || cards.length === 0) return { name: '', isValid: false };
+
+  const sorted = [...cards].sort((a, b) => {
+    if (a.rank !== b.rank) return a.rank - b.rank;
+    return a.suit - b.suit;
+  });
+
+  const n = sorted.length;
+
+  // 1 lá: Rác
+  if (n === 1) {
+    const c = sorted[0];
+    return { name: `Rác ${RANK_NAMES[c.rank]}${SUIT_SYMBOLS[c.suit]}`, isValid: true };
+  }
+
+  // 2 lá: Đôi
+  if (n === 2) {
+    if (sorted[0].rank === sorted[1].rank) {
+      if (ruleMode === 'TLMB') {
+        const isRed0 = sorted[0].suit === 2 || sorted[0].suit === 3;
+        const isRed1 = sorted[1].suit === 2 || sorted[1].suit === 3;
+        if (isRed0 !== isRed1) {
+          return { name: `Đôi ${RANK_NAMES[sorted[0].rank]} (Miền Bắc: Phải cùng màu)`, isValid: false };
+        }
+      }
+      return { name: `Đôi ${RANK_NAMES[sorted[0].rank]}`, isValid: true };
+    }
+    return { name: `2 lá khác số (Không phải đôi)`, isValid: false };
+  }
+
+  // 3 lá: Sám cô hoặc Sảnh 3 lá
+  if (n === 3) {
+    if (sorted[0].rank === sorted[1].rank && sorted[1].rank === sorted[2].rank) {
+      return { name: `Sám cô ${RANK_NAMES[sorted[0].rank]} (3 lá)`, isValid: true };
+    }
+    if (isStraight(sorted)) {
+      if (ruleMode === 'TLMB' && !isSameSuit(sorted)) {
+        return { name: `Sảnh 3 lá (Miền Bắc: Bắt buộc đồng chất)`, isValid: false };
+      }
+      return {
+        name: `Sảnh ${RANK_NAMES[sorted[0].rank]}-${RANK_NAMES[sorted[2].rank]} (3 lá)`,
+        isValid: true,
+      };
+    }
+    return { name: `3 lá không hợp lệ`, isValid: false };
+  }
+
+  // 4 lá: Tứ quý hoặc Sảnh 4 lá
+  if (n === 4) {
+    if (
+      sorted[0].rank === sorted[1].rank &&
+      sorted[1].rank === sorted[2].rank &&
+      sorted[2].rank === sorted[3].rank
+    ) {
+      return { name: `💥 Tứ quý ${RANK_NAMES[sorted[0].rank]}`, isValid: true };
+    }
+    if (isStraight(sorted)) {
+      if (ruleMode === 'TLMB' && !isSameSuit(sorted)) {
+        return { name: `Sảnh 4 lá (Miền Bắc: Bắt buộc đồng chất)`, isValid: false };
+      }
+      return {
+        name: `Sảnh ${RANK_NAMES[sorted[0].rank]}-${RANK_NAMES[sorted[3].rank]} (4 lá)`,
+        isValid: true,
+      };
+    }
+    return { name: `4 lá không hợp lệ`, isValid: false };
+  }
+
+  // 6 lá: 3 đôi thông hoặc Sảnh 6 lá
+  if (n === 6) {
+    if (isConsecutivePairs(sorted, 3)) {
+      if (ruleMode === 'TLMB') {
+        return { name: `3 đôi thông (Miền Bắc không dùng)`, isValid: false };
+      }
+      return { name: `💥 Ba đôi thông (${RANK_NAMES[sorted[0].rank]} đến ${RANK_NAMES[sorted[5].rank]})`, isValid: true };
+    }
+    if (isStraight(sorted)) {
+      if (ruleMode === 'TLMB' && !isSameSuit(sorted)) {
+        return { name: `Sảnh 6 lá (Miền Bắc: Bắt buộc đồng chất)`, isValid: false };
+      }
+      return { name: `Sảnh 6 lá (${RANK_NAMES[sorted[0].rank]}-${RANK_NAMES[sorted[5].rank]})`, isValid: true };
+    }
+  }
+
+  // 8 lá: 4 đôi thông hoặc Sảnh 8 lá
+  if (n === 8) {
+    if (isConsecutivePairs(sorted, 4)) {
+      if (ruleMode === 'TLMB') {
+        return { name: `4 đôi thông (Miền Bắc không dùng)`, isValid: false };
+      }
+      return { name: `💥 Bốn đôi thông (${RANK_NAMES[sorted[0].rank]} đến ${RANK_NAMES[sorted[7].rank]})`, isValid: true };
+    }
+    if (isStraight(sorted)) {
+      return { name: `Sảnh 8 lá`, isValid: true };
+    }
+  }
+
+  // Sảnh từ 5, 7, 9, 10, 11, 12 lá
+  if (isStraight(sorted)) {
+    if (ruleMode === 'TLMB' && !isSameSuit(sorted)) {
+      return { name: `Sảnh ${n} lá (Miền Bắc: Bắt buộc đồng chất)`, isValid: false };
+    }
+    return {
+      name: `Sảnh ${n} lá (${RANK_NAMES[sorted[0].rank]}-${RANK_NAMES[sorted[n - 1].rank]})`,
+      isValid: true,
+    };
+  }
+
+  return { name: `${n} lá không hợp lệ`, isValid: false };
+}
+
+function isSameSuit(cards: Card[]): boolean {
+  return cards.every((c) => c.suit === cards[0].suit);
+}
+
+function isStraight(cards: Card[]): boolean {
+  for (let i = 0; i < cards.length; i++) {
+    if (cards[i].rank === 12) return false; // Không chứa 2
+    if (i > 0 && cards[i].rank !== cards[i - 1].rank + 1) return false;
+  }
+  return true;
+}
+
+function isConsecutivePairs(cards: Card[], pairCount: number): boolean {
+  if (cards.length !== pairCount * 2) return false;
+  for (let p = 0; p < pairCount; p++) {
+    const idx = p * 2;
+    if (cards[idx].rank !== cards[idx + 1].rank) return false;
+    if (cards[idx].rank === 12) return false;
+    if (p > 0 && cards[idx].rank !== cards[(p - 1) * 2].rank + 1) return false;
+  }
+  return true;
+}
 
 export function findSmartHint(
   hand: Card[],
@@ -7,18 +145,37 @@ export function findSmartHint(
 ): number[] | null {
   if (!hand || hand.length === 0) return null;
 
-  // Sắp xếp bài từ nhỏ đến lớn
   const sorted = [...hand].sort((a, b) => {
     if (a.rank !== b.rank) return a.rank - b.rank;
     return a.suit - b.suit;
   });
 
-  // 1. Nếu bắt đầu vòng mới (chưa có ai đánh trên bàn)
+  // 1. Nếu bắt đầu vòng mới (chưa có ai đánh trên bàn):
+  // Gợi ý thông minh: Đôi, Sảnh, Sám cô, hoặc Rác
   if (!lastPlay || !lastPlay.combo || lastPlay.combo.type === 'INVALID') {
-    // Ưu tiên nếu có 3 Bích (Card ID = 0)
-    const threeSpade = sorted.find((c) => c.rank === 0 && c.suit === 0);
-    if (threeSpade) return [threeSpade.id];
-    // Hoặc gợi ý lá bài nhỏ nhất
+    // A. Ưu tiên gợi ý Sảnh dài (nếu có sảnh >= 3 lá)
+    for (let len = 5; len >= 3; len--) {
+      const straights = findAllStraights(sorted, len, ruleMode === 'TLMB');
+      if (straights.length > 0) return straights[0].map((c) => c.id);
+    }
+
+    // B. Ưu tiên gợi ý Đôi nhỏ (để xả đôi thấp)
+    const pairs = findAllPairs(sorted).filter((p) => {
+      if (p[0].rank === 12) return false; // không gợi ý xả đôi 2 vội
+      if (ruleMode === 'TLMB') {
+        const isRed0 = p[0].suit === 2 || p[0].suit === 3;
+        const isRed1 = p[1].suit === 2 || p[1].suit === 3;
+        return isRed0 === isRed1;
+      }
+      return true;
+    });
+    if (pairs.length > 0) return pairs[0].map((c) => c.id);
+
+    // C. Ưu tiên gợi ý Sám cô nhỏ
+    const triples = findAllTriples(sorted).filter((t) => t[0].rank < 12);
+    if (triples.length > 0) return triples[0].map((c) => c.id);
+
+    // D. Gợi ý lá rác nhỏ nhất
     return [sorted[0].id];
   }
 
@@ -28,9 +185,8 @@ export function findSmartHint(
   if (prev.type === 'SINGLE') {
     const prevCard = prev.cards[0];
 
-    // Miền Bắc: phải cùng chất và lớn hơn (hoặc Heo cùng chất/Heo cơ)
+    // Miền Bắc: phải cùng chất và lớn hơn (hoặc Heo cơ)
     if (ruleMode === 'TLMB') {
-      // Tìm bài thường cùng chất lớn hơn
       for (const c of sorted) {
         if (c.suit === prevCard.suit && c.rank > prevCard.rank) {
           return [c.id];
@@ -41,12 +197,6 @@ export function findSmartHint(
       if (heoCo && (prevCard.rank < 12 || prevCard.suit < 3)) {
         return [heoCo.id];
       }
-      // Heo cùng chất lớn hơn
-      const heoSameSuit = sorted.find(
-        (c) => c.rank === 12 && c.suit === prevCard.suit && c.rank > prevCard.rank
-      );
-      if (heoSameSuit) return [heoSameSuit.id];
-
       // Tứ quý chặt 1 heo
       if (prevCard.rank === 12) {
         const tuQuy = findFourOfAKind(sorted);
@@ -78,19 +228,15 @@ export function findSmartHint(
   if (prev.type === 'PAIR') {
     const prevHighest = prev.highestCard;
     const prevIsRed = prevHighest.suit === 2 || prevHighest.suit === 3;
-
-    // Tìm tất cả các đôi trong tay
     const pairs = findAllPairs(sorted);
 
     for (const pair of pairs) {
       if (ruleMode === 'TLMB') {
         const pairIsRed = pair[0].suit === 2 || pair[0].suit === 3;
-        // Miền Bắc: bắt buộc cùng màu
         if (pairIsRed === prevIsRed && pair[1].rank > prevHighest.rank) {
           return pair.map((c) => c.id);
         }
       } else {
-        // Miền Nam: đôi lớn hơn
         if (
           pair[1].rank > prevHighest.rank ||
           (pair[1].rank === prevHighest.rank && pair[1].suit > prevHighest.suit)
@@ -100,8 +246,11 @@ export function findSmartHint(
       }
     }
 
-    // TLMN: Đôi Heo bị chặt bởi 4 đôi thông
+    // TLMN: Đôi Heo bị chặt bởi Tứ quý hoặc 4 đôi thông!
     if (ruleMode === 'TLMN' && prevHighest.rank === 12) {
+      const tuQuy = findFourOfAKind(sorted);
+      if (tuQuy) return tuQuy.map((c) => c.id);
+
       const fourPairs = findFourConsecutivePairs(sorted);
       if (fourPairs) return fourPairs.map((c) => c.id);
     }
@@ -154,6 +303,24 @@ export function findSmartHint(
       if (fourPairs) return fourPairs.map((c) => c.id);
     }
     return null;
+  }
+
+  // 7. Chặn BA ĐÔI THÔNG
+  if (prev.type === 'THREE_CONSECUTIVE_PAIRS' && ruleMode === 'TLMN') {
+    const threePairs = findAllThreeConsecutivePairs(sorted);
+    for (const tp of threePairs) {
+      if (
+        tp[5].rank > prev.highestCard.rank ||
+        (tp[5].rank === prev.highestCard.rank && tp[5].suit > prev.highestCard.suit)
+      ) {
+        return tp.map((c) => c.id);
+      }
+    }
+    const tuQuy = findFourOfAKind(sorted);
+    if (tuQuy) return tuQuy.map((c) => c.id);
+
+    const fourPairs = findFourConsecutivePairs(sorted);
+    if (fourPairs) return fourPairs.map((c) => c.id);
   }
 
   return null;
@@ -209,7 +376,6 @@ function findAllFourOfAKinds(sorted: Card[]): Card[][] {
 }
 
 function findThreeConsecutivePairs(sorted: Card[]): Card[] | null {
-  // Tìm 3 đôi thông liên tiếp, không chứa rank 12
   const pairs = findAllPairs(sorted).filter((p) => p[0].rank < 12);
   for (let i = 0; i < pairs.length; i++) {
     for (let j = i + 1; j < pairs.length; j++) {
@@ -222,6 +388,22 @@ function findThreeConsecutivePairs(sorted: Card[]): Card[] | null {
     }
   }
   return null;
+}
+
+function findAllThreeConsecutivePairs(sorted: Card[]): Card[][] {
+  const res: Card[][] = [];
+  const pairs = findAllPairs(sorted).filter((p) => p[0].rank < 12);
+  for (let i = 0; i < pairs.length; i++) {
+    for (let j = i + 1; j < pairs.length; j++) {
+      for (let k = j + 1; k < pairs.length; k++) {
+        const p1 = pairs[i], p2 = pairs[j], p3 = pairs[k];
+        if (p2[0].rank === p1[0].rank + 1 && p3[0].rank === p2[0].rank + 1) {
+          res.push([...p1, ...p2, ...p3]);
+        }
+      }
+    }
+  }
+  return res;
 }
 
 function findFourConsecutivePairs(sorted: Card[]): Card[] | null {
@@ -249,7 +431,6 @@ function findAllStraights(sorted: Card[], length: number, isMonoSuit: boolean): 
   const straights: Card[][] = [];
   const noHeo = sorted.filter((c) => c.rank < 12);
 
-  // Nhóm theo rank
   const rankMap = new Map<number, Card[]>();
   for (const c of noHeo) {
     if (!rankMap.has(c.rank)) rankMap.set(c.rank, []);
@@ -266,7 +447,6 @@ function findAllStraights(sorted: Card[], length: number, isMonoSuit: boolean): 
     }
     if (possible) {
       if (isMonoSuit) {
-        // Kiểm tra đồng chất (Miền Bắc)
         for (let suit = 0; suit <= 3; suit++) {
           let hasSuit = true;
           const combo: Card[] = [];
@@ -281,7 +461,6 @@ function findAllStraights(sorted: Card[], length: number, isMonoSuit: boolean): 
           if (hasSuit) straights.push(combo);
         }
       } else {
-        // Miền Nam: lấy 1 lá mỗi rank
         const combo: Card[] = [];
         for (let r = startRank; r < startRank + length; r++) {
           combo.push(rankMap.get(r)![0]);

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, PlayerPublicInfo, RoomStateUpdate } from '../../../shared/types';
 import { CardView } from './CardView';
 import { sound } from '../utils/audio';
-import { findSmartHint } from '../utils/hint';
+import { findSmartHint, getComboDescription } from '../utils/hint';
 import {
   Volume2,
   VolumeX,
@@ -338,8 +338,11 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
                       </div>
                     )}
 
-                    <div className="text-xs text-amber-300/80 mb-1 font-semibold">
-                      {roomState.lastPlay.playerName} vừa đánh:
+                    <div className="text-xs text-amber-300/90 mb-1.5 font-semibold flex items-center gap-1.5">
+                      <span>{roomState.lastPlay.playerName} vừa đánh:</span>
+                      <span className="font-extrabold text-amber-300 bg-black/60 px-2 py-0.5 rounded-full border border-amber-400/50 shadow">
+                        {getComboDescription(roomState.lastPlay.cards, roomState.settings.ruleMode).name}
+                      </span>
                     </div>
 
                     {/* Cards on board */}
@@ -364,17 +367,36 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
       <div className="flex-shrink-0 z-30 bg-slate-950/95 border-t border-amber-500/30 px-2 pt-2 pb-3 backdrop-blur-md">
         <div className="max-w-4xl mx-auto flex flex-col items-center">
           {/* Action Button Bar */}
-          {roomState.phase === 'PLAYING' && (
-            <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap justify-center">
-              {/* Turn Countdown Indicator */}
-              {isMyTurn && (
-                <div className="flex items-center gap-1.5 bg-amber-500/20 border border-amber-400 text-amber-300 font-black px-3 py-1 rounded-full text-xs animate-pulse">
-                  <span>LƯỢT CỦA BẠN</span>
-                  {hasTimeLimit && (
-                    <span className="text-sm font-extrabold">: {roomState.turnTimeRemaining}s</span>
+          {roomState.phase === 'PLAYING' && (() => {
+            const selectedCards = sortedHand.filter((c) => selectedCardIds.includes(c.id));
+            const selectedComboDesc = getComboDescription(selectedCards, roomState.settings.ruleMode);
+
+            return (
+              <div className="flex flex-col items-center gap-1.5 mb-2 w-full">
+                {/* Hiển thị rõ loại bài đang chọn (Đôi, Sảnh, Sám cô, Tứ quý...) */}
+                {selectedCardIds.length > 0 && (
+                  <div
+                    className={`px-3 py-0.5 rounded-full text-xs font-black shadow-md flex items-center gap-1.5 animate-pulse ${
+                      selectedComboDesc.isValid
+                        ? 'bg-emerald-600 text-white border border-emerald-400'
+                        : 'bg-red-600/90 text-white border border-red-400'
+                    }`}
+                  >
+                    <span>{selectedComboDesc.isValid ? '🎯 Đang chọn:' : '⚠️ Chưa hợp lệ:'}</span>
+                    <span className="font-extrabold">{selectedComboDesc.name}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-center">
+                  {/* Turn Countdown Indicator */}
+                  {isMyTurn && (
+                    <div className="flex items-center gap-1.5 bg-amber-500/20 border border-amber-400 text-amber-300 font-black px-3 py-1 rounded-full text-xs animate-pulse">
+                      <span>LƯỢT CỦA BẠN</span>
+                      {hasTimeLimit && (
+                        <span className="text-sm font-extrabold">: {roomState.turnTimeRemaining}s</span>
+                      )}
+                    </div>
                   )}
-                </div>
-              )}
 
               {/* Gợi ý button */}
               {isMyTurn && (
@@ -425,7 +447,9 @@ export const GameTableView: React.FC<GameTableViewProps> = ({
                 <span>ĐÁNH BÀI ({selectedCardIds.length})</span>
               </button>
             </div>
-          )}
+          </div>
+            );
+          })()}
 
           {/* Cards Hand of Player (With pt-7 for translated lifted cards) */}
           <div className="w-full overflow-x-auto overflow-y-visible flex justify-center pb-1">
