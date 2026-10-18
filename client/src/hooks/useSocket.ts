@@ -54,7 +54,30 @@ export function useSocket() {
       setTimeout(() => setErrorMessage(null), 3500);
     });
 
+    // Xử lý khi người dùng quay lại tab trình duyệt trên Mobile (Visibility Change)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        if (!socket.connected) {
+          console.log('📱 Tab resumed on mobile, reconnecting socket...');
+          socket.connect();
+        } else {
+          socket.emit('register_player', { playerId });
+        }
+      }
+    };
+
+    const handleOnline = () => {
+      if (!socket.connected) {
+        socket.connect();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('online', handleOnline);
+
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('online', handleOnline);
       socket.disconnect();
     };
   }, [playerId]);

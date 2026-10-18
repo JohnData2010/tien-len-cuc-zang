@@ -46,9 +46,9 @@ export const CardView: React.FC<CardViewProps> = ({
   const suitStr = SUIT_SYMBOLS[card.suit];
 
   const sizeClasses = {
-    sm: 'w-10 h-14 text-xs rounded',
-    md: 'w-14 h-20 sm:w-16 sm:h-24 text-sm sm:text-base rounded-lg',
-    lg: 'w-16 h-24 sm:w-20 sm:h-28 text-base sm:text-lg rounded-xl',
+    sm: 'w-8 h-12 text-[10px] sm:w-10 sm:h-14 sm:text-xs rounded',
+    md: 'w-11 h-16 sm:w-16 sm:h-24 text-xs sm:text-base rounded-md sm:rounded-lg',
+    lg: 'w-14 h-20 sm:w-20 sm:h-28 text-sm sm:text-lg rounded-lg sm:rounded-xl',
   }[size];
 
   if (isFaceDown) {
@@ -69,12 +69,12 @@ export const CardView: React.FC<CardViewProps> = ({
       className={`
         ${sizeClasses}
         relative bg-white font-bold select-none transition-all duration-150 cursor-pointer shadow-md
-        flex flex-col justify-between p-1 sm:p-1.5
+        flex flex-col justify-between p-1 sm:p-1.5 touch-manipulation active:scale-95
         ${isRed ? 'text-red-600' : 'text-slate-900'}
         ${
           selected
-            ? '-translate-y-5 shadow-2xl ring-4 ring-amber-400 ring-offset-2 ring-offset-slate-950'
-            : 'hover:-translate-y-1'
+            ? '-translate-y-4 sm:-translate-y-5 shadow-2xl ring-2 sm:ring-4 ring-amber-400 ring-offset-1 sm:ring-offset-2 ring-offset-slate-950'
+            : 'sm:hover:-translate-y-1'
         }
         ${disabled ? 'opacity-70 cursor-not-allowed' : ''}
       `}

@@ -53,14 +53,14 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-slate-900 border-2 border-amber-400/80 rounded-2xl max-w-xl w-full p-6 shadow-2xl text-white">
-        <div className="text-center mb-6">
-          <Trophy className="w-12 h-12 text-amber-400 mx-auto mb-2 animate-bounce" />
-          <h2 className="text-2xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-500">
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 safe-top safe-bottom">
+      <div className="bg-slate-900 border-2 border-amber-400/80 rounded-2xl max-w-xl w-full max-h-[90dvh] overflow-y-auto p-4 sm:p-6 shadow-2xl text-white flex flex-col justify-between">
+        <div className="text-center mb-4 sm:mb-6">
+          <Trophy className="w-10 h-10 sm:w-12 sm:h-12 text-amber-400 mx-auto mb-2 animate-bounce" />
+          <h2 className="text-xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-400 to-yellow-500">
             KẾT THÚC VÁN ĐẤU!
           </h2>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">
             Luật: {roomState.settings.ruleMode === 'TLMB' ? 'Tiến Lên Miền Bắc' : 'Tiến Lên Miền Nam'}
           </p>
         </div>
